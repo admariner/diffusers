@@ -96,10 +96,7 @@ class ConfigMixin:
 
         model = cls(**init_dict)
 
-        if return_unused_kwargs:
-            return model, unused_kwargs
-        else:
-            return model
+        return (model, unused_kwargs) if return_unused_kwargs else model
 
     @classmethod
     def get_config_dict(

@@ -49,8 +49,8 @@ LOADABLE_CLASSES = {
 }
 
 ALL_IMPORTABLE_CLASSES = {}
-for library in LOADABLE_CLASSES:
-    ALL_IMPORTABLE_CLASSES.update(LOADABLE_CLASSES[library])
+for value in LOADABLE_CLASSES.values():
+    ALL_IMPORTABLE_CLASSES |= value
 
 
 class DiffusionPipeline(ConfigMixin):
@@ -95,7 +95,7 @@ class DiffusionPipeline(ConfigMixin):
         model_index_dict.pop("_diffusers_version")
         model_index_dict.pop("_module", None)
 
-        for pipeline_component_name in model_index_dict.keys():
+        for pipeline_component_name in model_index_dict:
             sub_model = getattr(self, pipeline_component_name)
             model_cls = sub_model.__class__
 
@@ -150,8 +150,10 @@ class DiffusionPipeline(ConfigMixin):
 
         # 1. Download the checkpoints and configs
         # use snapshot download here to get it working from from_pretrained
-        if not os.path.isdir(pretrained_model_name_or_path):
-            cached_folder = snapshot_download(
+        cached_folder = (
+            pretrained_model_name_or_path
+            if os.path.isdir(pretrained_model_name_or_path)
+            else snapshot_download(
                 pretrained_model_name_or_path,
                 cache_dir=cache_dir,
                 resume_download=resume_download,
@@ -160,8 +162,7 @@ class DiffusionPipeline(ConfigMixin):
                 use_auth_token=use_auth_token,
                 revision=revision,
             )
-        else:
-            cached_folder = pretrained_model_name_or_path
+        )
 
         config_dict = cls.get_config_dict(cached_folder)
 
@@ -251,9 +252,7 @@ class DiffusionPipeline(ConfigMixin):
 
             init_kwargs[name] = loaded_sub_model  # UNet(...), # DiffusionSchedule(...)
 
-        # 4. Instantiate the pipeline
-        model = pipeline_class(**init_kwargs)
-        return model
+        return pipeline_class(**init_kwargs)
 
     @staticmethod
     def numpy_to_pil(images):
@@ -263,6 +262,4 @@ class DiffusionPipeline(ConfigMixin):
         if images.ndim == 3:
             images = images[None, ...]
         images = (images * 255).round().astype("uint8")
-        pil_images = [Image.fromarray(image) for image in images]
-
-        return pil_images
+        return [Image.fromarray(image) for image in images]

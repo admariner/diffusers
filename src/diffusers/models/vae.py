@@ -243,10 +243,13 @@ class VectorQuantizer(nn.Module):
         min_encodings = None
 
         # compute loss for embedding
-        if not self.legacy:
-            loss = self.beta * torch.mean((z_q.detach() - z) ** 2) + torch.mean((z_q - z.detach()) ** 2)
-        else:
-            loss = torch.mean((z_q.detach() - z) ** 2) + self.beta * torch.mean((z_q - z.detach()) ** 2)
+        loss = (
+            torch.mean((z_q.detach() - z) ** 2)
+            + self.beta * torch.mean((z_q - z.detach()) ** 2)
+            if self.legacy
+            else self.beta * torch.mean((z_q.detach() - z) ** 2)
+            + torch.mean((z_q - z.detach()) ** 2)
+        )
 
         # preserve gradients
         z_q = z + (z_q - z).detach()
@@ -294,24 +297,24 @@ class DiagonalGaussianDistribution(object):
             self.var = self.std = torch.zeros_like(self.mean).to(device=self.parameters.device)
 
     def sample(self):
-        x = self.mean + self.std * torch.randn(self.mean.shape).to(device=self.parameters.device)
-        return x
+        return self.mean + self.std * torch.randn(self.mean.shape).to(
+            device=self.parameters.device
+        )
 
     def kl(self, other=None):
         if self.deterministic:
             return torch.Tensor([0.0])
+        if other is None:
+            return 0.5 * torch.sum(torch.pow(self.mean, 2) + self.var - 1.0 - self.logvar, dim=[1, 2, 3])
         else:
-            if other is None:
-                return 0.5 * torch.sum(torch.pow(self.mean, 2) + self.var - 1.0 - self.logvar, dim=[1, 2, 3])
-            else:
-                return 0.5 * torch.sum(
-                    torch.pow(self.mean - other.mean, 2) / other.var
-                    + self.var / other.var
-                    - 1.0
-                    - self.logvar
-                    + other.logvar,
-                    dim=[1, 2, 3],
-                )
+            return 0.5 * torch.sum(
+                torch.pow(self.mean - other.mean, 2) / other.var
+                + self.var / other.var
+                - 1.0
+                - self.logvar
+                + other.logvar,
+                dim=[1, 2, 3],
+            )
 
     def nll(self, sample, dims=[1, 2, 3]):
         if self.deterministic:
@@ -379,14 +382,12 @@ class VQModel(ModelMixin, ConfigMixin):
         else:
             quant = h
         quant = self.post_quant_conv(quant)
-        dec = self.decoder(quant)
-        return dec
+        return self.decoder(quant)
 
     def forward(self, sample):
         x = sample
         h = self.encode(x)
-        dec = self.decode(h)
-        return dec
+        return self.decode(h)
 
 
 class AutoencoderKL(ModelMixin, ConfigMixin):
@@ -432,20 +433,14 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
     def encode(self, x):
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        posterior = DiagonalGaussianDistribution(moments)
-        return posterior
+        return DiagonalGaussianDistribution(moments)
 
     def decode(self, z):
         z = self.post_quant_conv(z)
-        dec = self.decoder(z)
-        return dec
+        return self.decoder(z)
 
     def forward(self, sample, sample_posterior=False):
         x = sample
         posterior = self.encode(x)
-        if sample_posterior:
-            z = posterior.sample()
-        else:
-            z = posterior.mode()
-        dec = self.decode(z)
-        return dec
+        z = posterior.sample() if sample_posterior else posterior.mode()
+        return self.decode(z)

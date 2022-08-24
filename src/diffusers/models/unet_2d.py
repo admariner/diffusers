@@ -182,6 +182,4 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             timesteps = timesteps.reshape((sample.shape[0], *([1] * len(sample.shape[1:]))))
             sample = sample / timesteps
 
-        output = {"sample": sample}
-
-        return output
+        return {"sample": sample}

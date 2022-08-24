@@ -35,9 +35,7 @@ class SchedulerCommonTest(unittest.TestCase):
         height = 8
         width = 8
 
-        sample = torch.rand((batch_size, num_channels, height, width))
-
-        return sample
+        return torch.rand((batch_size, num_channels, height, width))
 
     @property
     def dummy_sample_deter(self):
@@ -82,7 +80,7 @@ class SchedulerCommonTest(unittest.TestCase):
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
                 new_scheduler.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             output = scheduler.step(residual, time_step, sample, **kwargs)["prev_sample"]
@@ -91,9 +89,7 @@ class SchedulerCommonTest(unittest.TestCase):
             assert torch.sum(torch.abs(output - new_output)) < 1e-5, "Scheduler outputs are not identical"
 
     def check_over_forward(self, time_step=0, **forward_kwargs):
-        kwargs = dict(self.forward_default_kwargs)
-        kwargs.update(forward_kwargs)
-
+        kwargs = dict(self.forward_default_kwargs) | forward_kwargs
         num_inference_steps = kwargs.pop("num_inference_steps", None)
 
         for scheduler_class in self.scheduler_classes:
@@ -110,7 +106,7 @@ class SchedulerCommonTest(unittest.TestCase):
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
                 new_scheduler.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             torch.manual_seed(0)
@@ -139,7 +135,7 @@ class SchedulerCommonTest(unittest.TestCase):
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
                 new_scheduler.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             torch.manual_seed(0)
@@ -163,7 +159,7 @@ class SchedulerCommonTest(unittest.TestCase):
 
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             output_0 = scheduler.step(residual, 0, sample, **kwargs)["prev_sample"]
@@ -192,7 +188,7 @@ class SchedulerCommonTest(unittest.TestCase):
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
                 scheduler_pt.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             output = scheduler.step(residual, 1, sample, **kwargs)["prev_sample"]
@@ -469,7 +465,7 @@ class PNDMSchedulerTest(SchedulerCommonTest):
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
                 scheduler_pt.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             # copy over dummy past residuals (must be done after set_timesteps)
@@ -499,7 +495,7 @@ class PNDMSchedulerTest(SchedulerCommonTest):
 
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             # copy over dummy past residuals (must be done after set_timesteps)
@@ -583,9 +579,7 @@ class ScoreSdeVeSchedulerTest(unittest.TestCase):
         height = 8
         width = 8
 
-        sample = torch.rand((batch_size, num_channels, height, width))
-
-        return sample
+        return torch.rand((batch_size, num_channels, height, width))
 
     @property
     def dummy_sample_deter(self):
@@ -646,9 +640,7 @@ class ScoreSdeVeSchedulerTest(unittest.TestCase):
             assert torch.sum(torch.abs(output - new_output)) < 1e-5, "Scheduler correction are not identical"
 
     def check_over_forward(self, time_step=0, **forward_kwargs):
-        kwargs = dict(self.forward_default_kwargs)
-        kwargs.update(forward_kwargs)
-
+        kwargs = dict(self.forward_default_kwargs) | forward_kwargs
         for scheduler_class in self.scheduler_classes:
             sample = self.dummy_sample
             residual = 0.1 * sample
@@ -731,7 +723,7 @@ class ScoreSdeVeSchedulerTest(unittest.TestCase):
 
             if num_inference_steps is not None and hasattr(scheduler, "set_timesteps"):
                 scheduler.set_timesteps(num_inference_steps)
-            elif num_inference_steps is not None and not hasattr(scheduler, "set_timesteps"):
+            elif num_inference_steps is not None:
                 kwargs["num_inference_steps"] = num_inference_steps
 
             output_0 = scheduler.step_pred(residual, 0, sample, **kwargs)["prev_sample"]

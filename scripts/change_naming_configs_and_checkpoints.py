@@ -14,6 +14,7 @@
 # limitations under the License.
 """ Conversion script for the LDM checkpoints. """
 
+
 import argparse
 import os
 import json
@@ -70,7 +71,7 @@ if __name__ == "__main__":
         config = json.loads(text)
 
     if do_only_config:
-        for key in config_parameters_to_change.keys():
+        for key in config_parameters_to_change:
             config.pop(key, None)
 
     if has_file(args.repo_path, "config.json"):
