@@ -127,8 +127,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
         alpha_prod = self.alphas_cumprod[timesteps]
         alpha_prod = self.match_shape(alpha_prod, original_samples)
 
-        noisy_samples = (alpha_prod**0.5) * original_samples + ((1 - alpha_prod) ** 0.5) * noise
-        return noisy_samples
+        return (alpha_prod**0.5) * original_samples + ((1 - alpha_prod) ** 0.5) * noise
 
     def __len__(self):
         return self.config.num_train_timesteps

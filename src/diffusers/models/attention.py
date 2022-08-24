@@ -39,9 +39,7 @@ class AttentionBlockNew(nn.Module):
 
     def transpose_for_scores(self, projection: torch.Tensor) -> torch.Tensor:
         new_projection_shape = projection.size()[:-1] + (self.num_heads, -1)
-        # move heads to 2nd position (B, T, H * D) -> (B, T, H, D) -> (B, H, T, D)
-        new_projection = projection.view(new_projection_shape).permute(0, 2, 1, 3)
-        return new_projection
+        return projection.view(new_projection_shape).permute(0, 2, 1, 3)
 
     def forward(self, hidden_states):
         residual = hidden_states
@@ -150,10 +148,17 @@ class SpatialTransformer(nn.Module):
 
         self.transformer_blocks = nn.ModuleList(
             [
-                BasicTransformerBlock(inner_dim, n_heads, d_head, dropout=dropout, context_dim=context_dim)
-                for d in range(depth)
+                BasicTransformerBlock(
+                    inner_dim,
+                    n_heads,
+                    d_head,
+                    dropout=dropout,
+                    context_dim=context_dim,
+                )
+                for _ in range(depth)
             ]
         )
+
 
         self.proj_out = nn.Conv2d(inner_dim, in_channels, kernel_size=1, stride=1, padding=0)
 
@@ -263,7 +268,12 @@ class FeedForward(nn.Module):
         super().__init__()
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
-        project_in = nn.Sequential(nn.Linear(dim, inner_dim), nn.GELU()) if not glu else GEGLU(dim, inner_dim)
+        project_in = (
+            GEGLU(dim, inner_dim)
+            if glu
+            else nn.Sequential(nn.Linear(dim, inner_dim), nn.GELU())
+        )
+
 
         self.net = nn.Sequential(project_in, nn.Dropout(dropout), nn.Linear(inner_dim, dim_out))
 

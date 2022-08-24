@@ -120,9 +120,8 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
             self.set_seed(seed)
         # TODO(Patrick) non-PyTorch
 
-        timestep = timestep * torch.ones(
-            sample.shape[0], device=sample.device
-        )  # torch.repeat_interleave(timestep, sample.shape[0])
+        timestep *= torch.ones(sample.shape[0], device=sample.device)
+
         timesteps = (timestep * (len(self.timesteps) - 1)).long()
 
         sigma = self.discrete_sigmas[timesteps].to(sample.device)

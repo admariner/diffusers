@@ -5,11 +5,43 @@ import random
 import torch
 api = HfApi()
 
-results = {}
-results["google_ddpm_cifar10_32"] = torch.tensor([-0.7515, -1.6883,  0.2420,  0.0300,  0.6347,  1.3433, -1.1743, -3.7467,
-         1.2342, -2.2485,  0.4636,  0.8076, -0.7991,  0.3969,  0.8498,  0.9189,
-        -1.8887, -3.3522,  0.7639,  0.2040,  0.6271, -2.7148, -1.6316,  3.0839,
-         0.3186,  0.2721, -0.9759, -1.2461,  2.6257,  1.3557])
+results = {
+    "google_ddpm_cifar10_32": torch.tensor(
+        [
+            -0.7515,
+            -1.6883,
+            0.2420,
+            0.0300,
+            0.6347,
+            1.3433,
+            -1.1743,
+            -3.7467,
+            1.2342,
+            -2.2485,
+            0.4636,
+            0.8076,
+            -0.7991,
+            0.3969,
+            0.8498,
+            0.9189,
+            -1.8887,
+            -3.3522,
+            0.7639,
+            0.2040,
+            0.6271,
+            -2.7148,
+            -1.6316,
+            3.0839,
+            0.3186,
+            0.2721,
+            -0.9759,
+            -1.2461,
+            2.6257,
+            1.3557,
+        ]
+    )
+}
+
 results["google_ddpm_ema_bedroom_256"] = torch.tensor([-2.3639, -2.5344,  0.0054, -0.6674,  1.5990,  1.0158,  0.3124, -2.1436,
          1.8795, -2.5429, -0.1566, -0.3973,  1.2490,  2.6447,  1.2283, -0.5208,
         -2.8154, -3.5119,  2.3838,  1.2033,  1.7201, -2.1256, -1.4576,  2.7948,
@@ -78,10 +110,10 @@ for mod in models:
             model = UNet2DModel.from_pretrained(local_checkpoint, subfolder = "unet")
         else: 
             model = UNet2DModel.from_pretrained(local_checkpoint)
-        
+
         torch.manual_seed(0)
         random.seed(0)
-        
+
         noise = torch.randn(1, model.config.in_channels, model.config.sample_size, model.config.sample_size)
         time_step = torch.tensor([10] * noise.shape[0])
         with torch.no_grad():

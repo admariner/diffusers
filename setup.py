@@ -162,11 +162,13 @@ class DepsTableUpdateCommand(Command):
 extras = {}
 
 
-extras = {}
-extras["quality"] = ["black ~= 22.0", "isort >= 5.5.4", "flake8 >= 3.8.3"]
-extras["docs"] = ["hf-doc-builder"]
-extras["training"] = ["accelerate", "datasets", "tensorboard", "modelcards"]
-extras["test"] = ["pytest"]
+extras = {
+    "quality": ["black ~= 22.0", "isort >= 5.5.4", "flake8 >= 3.8.3"],
+    "docs": ["hf-doc-builder"],
+    "training": ["accelerate", "datasets", "tensorboard", "modelcards"],
+    "test": ["pytest"],
+}
+
 extras["dev"] = extras["quality"] + extras["test"] + extras["training"] + extras["docs"]
 
 install_requires = [

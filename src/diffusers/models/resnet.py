@@ -42,13 +42,8 @@ class Upsample2D(nn.Module):
 
         x = F.interpolate(x, scale_factor=2.0, mode="nearest")
 
-        # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
         if self.use_conv:
-            if self.name == "conv":
-                x = self.conv(x)
-            else:
-                x = self.Conv2d_0(x)
-
+            x = self.conv(x) if self.name == "conv" else self.Conv2d_0(x)
         return x
 
 
@@ -79,11 +74,7 @@ class Downsample2D(nn.Module):
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
         if name == "conv":
             self.Conv2d_0 = conv
-            self.conv = conv
-        elif name == "Conv2d_0":
-            self.conv = conv
-        else:
-            self.conv = conv
+        self.conv = conv
 
     def forward(self, x):
         assert x.shape[1] == self.channels
@@ -100,7 +91,7 @@ class Downsample2D(nn.Module):
 class FirUpsample2D(nn.Module):
     def __init__(self, channels=None, out_channels=None, use_conv=False, fir_kernel=(1, 3, 3, 1)):
         super().__init__()
-        out_channels = out_channels if out_channels else channels
+        out_channels = out_channels or channels
         if use_conv:
             self.Conv2d_0 = nn.Conv2d(channels, out_channels, kernel_size=3, stride=1, padding=1)
         self.use_conv = use_conv
@@ -189,7 +180,7 @@ class FirUpsample2D(nn.Module):
 class FirDownsample2D(nn.Module):
     def __init__(self, channels=None, out_channels=None, use_conv=False, fir_kernel=(1, 3, 3, 1)):
         super().__init__()
-        out_channels = out_channels if out_channels else channels
+        out_channels = out_channels or channels
         if use_conv:
             self.Conv2d_0 = nn.Conv2d(channels, out_channels, kernel_size=3, stride=1, padding=1)
         self.fir_kernel = fir_kernel
@@ -360,9 +351,7 @@ class ResnetBlock(nn.Module):
         if self.conv_shortcut is not None:
             x = self.conv_shortcut(x)
 
-        out = (x + h) / self.output_scale_factor
-
-        return out
+        return (x + h) / self.output_scale_factor
 
 
 class Mish(torch.nn.Module):
