@@ -1,4 +1,4 @@
-# Copyright 2022 The HuggingFace Team, the AllenNLP library authors. All rights reserved.
+# Copyright 2024 The HuggingFace Team, the AllenNLP library authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,13 +15,16 @@
 Script to close stale issue. Taken in part from the AllenNLP repository.
 https://github.com/allenai/allennlp.
 """
+
 import os
 from datetime import datetime as dt
+from datetime import timezone
 
 from github import Github
 
 
 LABELS_TO_EXEMPT = [
+    "close-to-merge",
     "good first issue",
     "good second issue",
     "good difficult issue",
@@ -38,15 +41,20 @@ def main():
     open_issues = repo.get_issues(state="open")
 
     for issue in open_issues:
-        comments = sorted([comment for comment in issue.get_comments()], key=lambda i: i.created_at, reverse=True)
-        last_comment = comments[0] if len(comments) > 0 else None
-        if (
-            last_comment is not None
-            and last_comment.user.login != "github-actions[bot]"
-            and (dt.utcnow() - issue.updated_at).days > 23
-            and (dt.utcnow() - issue.created_at).days >= 30
-            and not any(label.name.lower() in LABELS_TO_EXEMPT for label in issue.get_labels())
+        labels = [label.name.lower() for label in issue.get_labels()]
+        if "stale" in labels:
+            comments = sorted(issue.get_comments(), key=lambda i: i.created_at, reverse=True)
+            last_comment = comments[0] if len(comments) > 0 else None
+            if last_comment is not None and last_comment.user.login != "github-actions[bot]":
+                # Opens the issue if someone other than Stalebot commented.
+                issue.edit(state="open")
+                issue.remove_from_labels("stale")
+        elif (
+            (dt.now(timezone.utc) - issue.updated_at).days > 23
+            and (dt.now(timezone.utc) - issue.created_at).days >= 30
+            and not any(label in LABELS_TO_EXEMPT for label in labels)
         ):
+            # Post a Stalebot notification after 23 days of inactivity.
             issue.create_comment(
                 "This issue has been automatically marked as stale because it has not had "
                 "recent activity. If you think this still needs to be addressed "
@@ -54,7 +62,7 @@ def main():
                 "[contributing guidelines](https://github.com/huggingface/diffusers/blob/main/CONTRIBUTING.md) "
                 "are likely to be ignored."
             )
-            issue.edit(labels=["stale"])
+            issue.add_to_labels("stale")
 
 
 if __name__ == "__main__":

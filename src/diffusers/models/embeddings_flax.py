@@ -1,4 +1,4 @@
-# Copyright 2022 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,23 +17,52 @@ import flax.linen as nn
 import jax.numpy as jnp
 
 
-# This is like models.embeddings.get_timestep_embedding (PyTorch) but
-# less general (only handles the case we currently need).
-def get_sinusoidal_embeddings(timesteps, embedding_dim, freq_shift: float = 1):
-    """
-    This matches the implementation in Denoising Diffusion Probabilistic Models: Create sinusoidal timestep embeddings.
+def get_sinusoidal_embeddings(
+    timesteps: jnp.ndarray,
+    embedding_dim: int,
+    freq_shift: float = 1,
+    min_timescale: float = 1,
+    max_timescale: float = 1.0e4,
+    flip_sin_to_cos: bool = False,
+    scale: float = 1.0,
+) -> jnp.ndarray:
+    """Returns the positional encoding (same as Tensor2Tensor).
 
-    :param timesteps: a 1-D tensor of N indices, one per batch element.
-                      These may be fractional.
-    :param embedding_dim: the dimension of the output. :param max_period: controls the minimum frequency of the
-    embeddings. :return: an [N x dim] tensor of positional embeddings.
+    Args:
+        timesteps (`jnp.ndarray` of shape `(N,)`):
+            A 1-D array of N indices, one per batch element. These may be fractional.
+        embedding_dim (`int`):
+            The number of output channels.
+        freq_shift (`float`, *optional*, defaults to `1`):
+            Shift applied to the frequency scaling of the embeddings.
+        min_timescale (`float`, *optional*, defaults to `1`):
+            The smallest time unit used in the sinusoidal calculation (should probably be 0.0).
+        max_timescale (`float`, *optional*, defaults to `1.0e4`):
+            The largest time unit used in the sinusoidal calculation.
+        flip_sin_to_cos (`bool`, *optional*, defaults to `False`):
+            Whether to flip the order of sinusoidal components to cosine first.
+        scale (`float`, *optional*, defaults to `1.0`):
+            A scaling factor applied to the positional embeddings.
+
+    Returns:
+        a Tensor of timing signals [N, num_channels]
     """
-    half_dim = embedding_dim // 2
-    emb = math.log(10000) / (half_dim - freq_shift)
-    emb = jnp.exp(jnp.arange(half_dim) * -emb)
-    emb = timesteps[:, None] * emb[None, :]
-    emb = jnp.concatenate([jnp.cos(emb), jnp.sin(emb)], -1)
-    return emb
+    assert timesteps.ndim == 1, "Timesteps should be a 1d-array"
+    assert embedding_dim % 2 == 0, f"Embedding dimension {embedding_dim} should be even"
+    num_timescales = float(embedding_dim // 2)
+    log_timescale_increment = math.log(max_timescale / min_timescale) / (num_timescales - freq_shift)
+    inv_timescales = min_timescale * jnp.exp(jnp.arange(num_timescales, dtype=jnp.float32) * -log_timescale_increment)
+    emb = jnp.expand_dims(timesteps, 1) * jnp.expand_dims(inv_timescales, 0)
+
+    # scale embeddings
+    scaled_time = scale * emb
+
+    if flip_sin_to_cos:
+        signal = jnp.concatenate([jnp.cos(scaled_time), jnp.sin(scaled_time)], axis=1)
+    else:
+        signal = jnp.concatenate([jnp.sin(scaled_time), jnp.cos(scaled_time)], axis=1)
+    signal = jnp.reshape(signal, [jnp.shape(timesteps)[0], embedding_dim])
+    return signal
 
 
 class FlaxTimestepEmbedding(nn.Module):
@@ -42,10 +71,11 @@ class FlaxTimestepEmbedding(nn.Module):
 
     Args:
         time_embed_dim (`int`, *optional*, defaults to `32`):
-                Time step embedding dimension
-        dtype (:obj:`jnp.dtype`, *optional*, defaults to jnp.float32):
-                Parameters `dtype`
+            Time step embedding dimension.
+        dtype (`jnp.dtype`, *optional*, defaults to `jnp.float32`):
+            The data type for the embedding parameters.
     """
+
     time_embed_dim: int = 32
     dtype: jnp.dtype = jnp.float32
 
@@ -63,11 +93,19 @@ class FlaxTimesteps(nn.Module):
 
     Args:
         dim (`int`, *optional*, defaults to `32`):
-                Time step embedding dimension
+            Time step embedding dimension.
+        flip_sin_to_cos (`bool`, *optional*, defaults to `False`):
+            Whether to flip the sinusoidal function from sine to cosine.
+        freq_shift (`float`, *optional*, defaults to `1`):
+            Frequency shift applied to the sinusoidal embeddings.
     """
+
     dim: int = 32
+    flip_sin_to_cos: bool = False
     freq_shift: float = 1
 
     @nn.compact
     def __call__(self, timesteps):
-        return get_sinusoidal_embeddings(timesteps, self.dim, freq_shift=self.freq_shift)
+        return get_sinusoidal_embeddings(
+            timesteps, embedding_dim=self.dim, flip_sin_to_cos=self.flip_sin_to_cos, freq_shift=self.freq_shift
+        )
